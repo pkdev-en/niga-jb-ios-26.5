@@ -1,0 +1,79 @@
+# .github/workflows/fuzz.yml
+name: JSC Fuzzer
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Chạy mỗi 6 tiếng
+  workflow_dispatch:        # Trigger manual
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340    # Sát limit 6h
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '5.9'
+
+      - name: Cache WebKit build
+        uses: actions/cache@v4
+        id: webkit-cache
+        with:
+          path: |
+            WebKit/WebKitBuild
+          key: webkit-jsc-${{ runner.os }}-${{ hashFiles('WebKit/Source/JavaScriptCore/**') }}
+
+      - name: Clone WebKit
+        if: steps.webkit-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 https://github.com/WebKit/WebKit
+          cd WebKit
+          Tools/Scripts/build-jsc --jsc-only --release 2>&1 | tail -20
+
+      - name: Build Fuzzilli
+        run: |
+          git clone https://github.com/googleprojectzero/fuzzilli
+          cd fuzzilli
+          swift build -c release 2>&1 | tail -10
+
+      - name: Run Fuzzilli
+        run: |
+          mkdir -p crashes corpus
+
+          ./fuzzilli/.build/release/FuzzilliCli \
+            --profile=jsc \
+            --jobs=2 \
+            --timeout=5000 \
+            --minimizeCrashes \
+            --exportStatistics \
+            --storagePath=./corpus \
+            -- ./WebKit/WebKitBuild/Release/bin/jsc &
+
+          FUZZ_PID=$!
+
+          # Chạy 5h45m rồi kill gracefully trước khi CI timeout
+          sleep 20700
+          kill -SIGINT $FUZZ_PID
+          wait $FUZZ_PID || true
+
+      - name: Upload crashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashes-${{ github.run_id }}-${{ github.run_attempt }}
+          path: crashes/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-${{ github.run_id }}
+          path: corpus/
+          retention-days: 7
