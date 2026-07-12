@@ -1,0 +1,28 @@
+      - name: Download previous corpus
+        run: |
+          # Pull corpus từ run trước nếu có
+          gh release download corpus-latest \
+            --pattern "corpus-*.tar.gz" \
+            --dir ./prev-corpus || echo "No previous corpus"
+
+          if [ -d prev-corpus ] && [ "$(ls -A prev-corpus)" ]; then
+            tar xzf prev-corpus/corpus-*.tar.gz -C corpus/ || true
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save corpus to release
+        if: always()
+        run: |
+          tar czf corpus-${{ github.run_id }}.tar.gz corpus/
+
+          gh release create corpus-latest \
+            corpus-${{ github.run_id }}.tar.gz \
+            --title "Corpus ${{ github.run_id }}" \
+            --notes "Auto-updated corpus" \
+            --prerelease || \
+          gh release upload corpus-latest \
+            corpus-${{ github.run_id }}.tar.gz \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
