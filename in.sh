@@ -15,13 +15,16 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-# FUNCTION: TYPING EFFECT ANIMATION
+# FUNCTION: TYPING EFFECT ANIMATION (Fixed POSIX compatible)
 type_effect() {
     local text="$1"
     local delay="$2"
-    for (( i=0; i<${#text}; i++ )); do
-        echo -n "${text:$i:1}"
+    len=${#text}
+    i=0
+    while [ $i -lt $len ]; do
+        printf "%s" "${text:$i:1}"
         sleep "$delay"
+        i=$((i + 1))
     done
     echo ""
 }
@@ -219,7 +222,7 @@ boot_qemu() {
     # Turn off old QEMU processes if running
     pkill qemu-system-x86 > /dev/null 2>&1
 
-    # 🚀 EXECUTING INTEGRATED CORE NETDEV NETWORK COMMAND STRUCTURE IN BACKGROUND
+    # 🚀 RUN QEMU SILENTLY IN BACKGROUND
     nohup qemu-system-x86_64 \
         -hda /home/daytona/ubuntu22.qcow2 \
         -m $RAM_VALUE \
