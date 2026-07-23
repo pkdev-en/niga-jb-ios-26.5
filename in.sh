@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# Clear terminal for clean dashboard view
 clear
 
-# ==========================================
-# 🌟 PREMIUM COLOR CODES & FX
-# ==========================================
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -15,7 +11,6 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-# FUNCTION: TYPING EFFECT ANIMATION (Fixed POSIX compatible)
 type_effect() {
     local text="$1"
     local delay="$2"
@@ -29,7 +24,6 @@ type_effect() {
     echo ""
 }
 
-# FUNCTION: LOADING BAR ANIMATION
 loading_bar() {
     local title="$1"
     echo -ne "${YELLOW}⏳ $title ${NC}[          ]"
@@ -44,16 +38,12 @@ loading_bar() {
     echo -e " ${GREEN}DONE!${NC}"
 }
 
-# AUTOMATED ROOT/SUDO PRIVILEGE CHECK
 if [ "$(id -u)" -eq 0 ]; then
     SUDO_CMD=""
 else
     SUDO_CMD="sudo"
 fi
 
-# ==========================================
-# MAIN INTERACTIVE LIST MENU
-# ==========================================
 show_menu() {
     clear
     echo -e "${RED}==========================================================${NC}"
@@ -96,7 +86,6 @@ show_menu() {
     esac
 }
 
-# STEP 1: CONFIGURE STORAGE & DOWNLOAD CLOUD ARCHITECTURE
 create_vps() {
     clear
     echo -e "${RED}==========================================================${NC}"
@@ -110,25 +99,23 @@ create_vps() {
     read CPU_CORES
     echo -ne "${BLUE}🔹 Enter Disk Space to ADD in GB (e.g., 10, 20): ${NC}"
     read DISK_ADD
-    echo -ne "${BLUE}🔹 Create Username (Default: ubuntu): ${NC}"
+    echo -ne "${BLUE}🔹 Create Username (Default: root): ${NC}"
     read USER_NAME
-    USER_NAME=${USER_NAME:-ubuntu}
+    USER_NAME=${USER_NAME:-root}
     echo -ne "${BLUE}🔹 Create Password (Default: 1234): ${NC}"
     read USER_PASS
     USER_PASS=${USER_PASS:-1234}
     
-    # 2222 is set as the foundational port base
     TCP_HOST_PORT=${TCP_HOST_PORT:-2222}
     TCP_GUEST_PORT=22
 
     echo ""
-    echo -e "${YELLOW}⏳ Background core dependencies install ho rahi hain... Please wait.${NC}"
+    echo -e "${YELLOW}⏳ Background core dependencies installing... Please wait.${NC}"
     echo ""
     
     $SUDO_CMD apt-get update -y > /dev/null 2>&1
     $SUDO_CMD apt-get install -y qemu-system-x86 qemu-utils wget cloud-image-utils curl > /dev/null 2>&1
     
-    # Custom absolute path architecture build
     $SUDO_CMD mkdir -p /home/daytona > /dev/null 2>&1
     
     if [ ! -f "/home/daytona/ubuntu22.qcow2" ]; then
@@ -139,14 +126,22 @@ create_vps() {
         echo -e "${GREEN}✅ Existing Ubuntu Image Cache Detected at /home/daytona/.${NC}"
     fi
     
-    loading_bar "Generating Cloud-Init Matrix"
+    loading_bar "Unlocking Root SSH Configuration"
+    
+    # 🚀 FORCE UNLOCK ROOT LOGIN & PASSWORD AUTH VIA CLOUD-INIT RUNCMD
     cat <<EOF > user-data
 #cloud-config
-ssh_pwauth: True
+disable_root: false
+ssh_pwauth: true
 chpasswd:
   list: |
-    ${USER_NAME}:${USER_PASS}
+    root:${USER_PASS}
+    ubuntu:${USER_PASS}
   expire: False
+runcmd:
+  - sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+  - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  - systemctl restart sshd || service ssh restart
 EOF
 
     cloud-localds seed.img user-data > /dev/null 2>&1
@@ -157,7 +152,6 @@ EOF
     boot_qemu
 }
 
-# STEP 2: NETWORK CONTROL MODIFIER
 configure_tcp() {
     clear
     echo -e "${YELLOW}==========================================================${NC}"
@@ -188,13 +182,12 @@ configure_tcp() {
 save_env() {
     echo "RAM_GB=${RAM_GB:-32}" > .vps_env
     echo "CPU_CORES=${CPU_CORES:-4}" >> .vps_env
-    echo "USER_NAME=${USER_NAME:-ubuntu}" >> .vps_env
+    echo "USER_NAME=${USER_NAME:-root}" >> .vps_env
     echo "USER_PASS=${USER_PASS:-1234}" >> .vps_env
     echo "TCP_HOST_PORT=${TCP_HOST_PORT:-2222}" >> .vps_env
     echo "TCP_GUEST_PORT=${TCP_GUEST_PORT:-22}" >> .vps_env
 }
 
-# STEP 3: POPOUT LINK AND RUN THE MASTER EXECUTION COMMAND
 boot_qemu() {
     if [ -f ".vps_env" ]; then
         source .vps_env
@@ -210,7 +203,6 @@ boot_qemu() {
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
     
-    # Run SSHX tunnel in background
     sshx_log=$(mktemp)
     pkill sshx > /dev/null 2>&1
     curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 &
@@ -219,10 +211,8 @@ boot_qemu() {
     SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
     rm -f "$sshx_log"
 
-    # Turn off old QEMU processes if running
     pkill qemu-system-x86 > /dev/null 2>&1
 
-    # 🚀 RUN QEMU SILENTLY IN BACKGROUND
     nohup qemu-system-x86_64 \
         -hda /home/daytona/ubuntu22.qcow2 \
         -m $RAM_VALUE \
@@ -236,7 +226,7 @@ boot_qemu() {
     echo -e "${GREEN}==========================================================${NC}"
     echo -e "🎉       DEUP GAMING & DXD LABS - VM NETWORK ACTIVE        "
     echo -e "${GREEN}==========================================================${NC}"
-    echo -e "${WHITE}👤 Username : ${CYAN}${USER_NAME:-ubuntu}${NC}"
+    echo -e "${WHITE}👤 Username : ${CYAN}${USER_NAME:-root}${NC}"
     echo -e "${WHITE}🔑 Password : ${CYAN}${USER_PASS:-1234}${NC}"
     echo -e "${WHITE}⚙️  Resources: ${CYAN}${RAM_VALUE} RAM | ${CPU_CORES:-4} Cores${NC}"
     echo -e "${WHITE}🚀 Port Rule : ${YELLOW}Host Port ${TCP_HOST_PORT} -> VM Port ${TCP_GUEST_PORT}${NC}"
@@ -248,14 +238,13 @@ boot_qemu() {
         echo -e "${RED}⚠️ Tunnel proxy loading slow. Direct local network port is listening.${NC}"
     fi
     echo -e "${RED}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}👉 Connection Command : ssh ${USER_NAME:-ubuntu}@localhost -p ${TCP_HOST_PORT}${NC}"
+    echo -e "${WHITE}👉 Connection Command : ssh ${USER_NAME:-root}@localhost -p ${TCP_HOST_PORT}${NC}"
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
-    echo -e "${YELLOW}💡 QEMU VM currently running silently in the background.${NC}"
-    echo -e "${YELLOW}💡 Copy link above or use SSH command to enter VM!${NC}"
+    echo -e "${YELLOW}💡 Đã kích hoạt xong! Máy ảo đang boot ẩn dưới nền.${NC}"
+    echo -e "${YELLOW}💡 Đợi tầm 45 - 60 giây cho Ubuntu chỉnh xong cấu hình SSH rồi hãy gõ lệnh nhé!${NC}"
 }
 
-# RESTART PIPELINE
 restart_vps() {
     if [ -f "/home/daytona/ubuntu22.qcow2" ] && [ -f "seed.img" ]; then
         echo -e "${GREEN}🔄 Restarting existing server architecture...${NC}"
@@ -268,7 +257,6 @@ restart_vps() {
     fi
 }
 
-# CLEAN PIPELINE
 clean_vps() {
     echo -e "${RED}⚠️ Purging system storage components and configurations...${NC}"
     $SUDO_CMD rm -rf user-data seed.img /home/daytona/ubuntu22.qcow2 .vps_env
@@ -280,5 +268,4 @@ clean_vps() {
     show_menu
 }
 
-# EXECUTE TRIGGER
 show_menu
